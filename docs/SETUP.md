@@ -161,7 +161,7 @@ kubectl get applications -n argocd -w
 
 aws ecr get-login-password --region eu-west-1 | \
   docker login --username AWS --password-stdin \
-  123456789.dkr.ecr.eu-west-1.amazonaws.com
+  444062204470.dkr.ecr.eu-west-1.amazonaws.com
 # Replace 123456789 with your actual AWS account ID
 
 
@@ -169,7 +169,7 @@ aws ecr get-login-password --region eu-west-1 | \
 # Repeat for each service. Replace ECR_URL with your actual ECR URLs
 # from the Terraform outputs in Step 2/3.
 
-ECR_URL="123456789.dkr.ecr.eu-west-1.amazonaws.com"
+ECR_URL="444062204470.dkr.ecr.eu-west-1.amazonaws.com"
 
 # api-gateway
 docker build -t $ECR_URL/platform-dev-api-gateway:dev-latest \
