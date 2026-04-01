@@ -48,7 +48,7 @@ on:
     paths:
       - 'apps/**'
       - 'helm/**'
-  # Allows manually triggering the prod promotion job from the GitHub UI
+  #### Allows manually triggering the prod promotion job from the GitHub UI
   workflow_dispatch:
     inputs:
       image_tag:
