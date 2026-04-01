@@ -1,0 +1,56 @@
+# app-of-apps.yaml
+#
+# THE APP OF APPS PATTERN
+# ───────────────────────
+# ArgoCD manages "Applications" — each one points at a Git path and
+# a target cluster/namespace, and keeps them in sync.
+#
+# The problem: if you have 6 apps (3 services × 2 envs), you'd have to
+# manually apply each Application manifest to ArgoCD one by one.
+# And manually again every time you add a new service.
+#
+# The solution: App of Apps.
+# This single Application points ArgoCD at the gitops/argocd/ folder.
+# ArgoCD sees the other Application YAMLs in that folder and creates them
+# automatically. Adding a new service = add one file to Git. That's it.
+#
+# Visual:
+#   app-of-apps (this file)
+#     └── watches: gitops/argocd/
+#           ├── creates: api-gateway-dev
+#           ├── creates: api-gateway-prod
+#           ├── creates: order-service-dev
+#           ├── creates: order-service-prod
+#           ├── creates: user-service-dev
+#           └── creates: user-service-prod
+#
+# Install ArgoCD first, then apply ONLY this file:
+#   kubectl apply -f gitops/argocd/app-of-apps.yaml
+# ArgoCD handles everything else from Git.
+
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: app-of-apps
+  namespace: argocd               # ArgoCD only reads Applications in its own namespace
+  finalizers:
+    # When this Application is deleted, ArgoCD will also delete all
+    # child Applications it created. Remove this if you want to delete
+    # the parent without nuking the children.
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/YOUR_ORG/YOUR_REPO.git   # replace with your repo
+    targetRevision: HEAD
+    path: platform/gitops/argocd   # ArgoCD watches this folder for Application manifests
+
+  destination:
+    server: https://kubernetes.default.svc   # the cluster ArgoCD itself runs in
+    namespace: argocd
+
+  syncPolicy:
+    automated:
+      prune: true      # delete ArgoCD apps if their file is removed from Git
+      selfHeal: true   # re-sync if someone manually edits an ArgoCD app out of band

@@ -1,0 +1,65 @@
+# require-readonly-rootfs.yaml
+#
+# WHAT: Requires all containers to set readOnlyRootFilesystem: true.
+#
+# WHY: If an attacker gains code execution inside a container, the first
+#      thing they do is write files — drop a reverse shell, modify configs,
+#      install tools. A read-only root filesystem stops this cold.
+#
+#   Legitimate writes (logs, temp files) should go to explicitly mounted
+#   volumes or emptyDir mounts — not the container root.
+#
+# This enforces the `readOnlyRootFilesystem: true` we set in:
+#   - Helm values.yaml → securityContext.readOnlyRootFilesystem: true
+#   - Helm deployment.yaml template → securityContext block
+#
+# If your app needs to write temp files, add an emptyDir volume:
+#   volumes:
+#     - name: tmp
+#       emptyDir: {}
+#   volumeMounts:
+#     - name: tmp
+#       mountPath: /tmp
+
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-readonly-rootfs
+  annotations:
+    policies.kyverno.io/title: Require Read-Only Root Filesystem
+    policies.kyverno.io/category: Security
+    policies.kyverno.io/severity: medium
+    policies.kyverno.io/description: >-
+      All containers must set readOnlyRootFilesystem: true to prevent
+      attackers from writing files to the container filesystem.
+spec:
+  validationFailureAction: Enforce
+  background: true
+
+  rules:
+    - name: check-readonly-rootfs
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+              namespaces:
+                - dev
+                - prod
+      exclude:
+        any:
+          - resources:
+              namespaces:
+                - kube-system
+                - kyverno
+                - istio-system
+
+      validate:
+        message: >-
+          containers must set securityContext.readOnlyRootFilesystem: true.
+          If your app writes temp files, mount an emptyDir volume instead.
+        pattern:
+          spec:
+            containers:
+              - securityContext:
+                  readOnlyRootFilesystem: true

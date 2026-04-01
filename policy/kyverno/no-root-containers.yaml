@@ -1,0 +1,66 @@
+# no-root-containers.yaml
+#
+# WHAT: Blocks any pod where a container runs as root (UID 0) or
+#       doesn't explicitly declare it won't.
+#
+# WHY: If a vulnerability lets an attacker escape the app process,
+#      running as root means they have full node-level permissions.
+#      This enforces what we already set up in:
+#        - Dockerfile:      USER appuser  (UID 1000)
+#        - Helm values:     runAsNonRoot: true / runAsUser: 1000
+#
+# HOW KYVERNO WORKS: Kyverno is a Kubernetes admission controller.
+#   Every time a resource (Pod, Deployment, etc.) is created or updated,
+#   the API server calls Kyverno's webhook BEFORE persisting the object.
+#   Kyverno evaluates policies and either ALLOWS or DENIES the request.
+#   Nothing runs without passing these checks.
+#
+# validationFailureAction:
+#   Enforce → deny the request outright (use in prod)
+#   Audit   → allow but log a violation (use when rolling out a new policy)
+
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy              # ClusterPolicy applies across all namespaces
+metadata:
+  name: no-root-containers
+  annotations:
+    policies.kyverno.io/title: No Root Containers
+    policies.kyverno.io/category: Security
+    policies.kyverno.io/severity: high
+    policies.kyverno.io/description: >-
+      Containers must not run as root. Every container must set
+      runAsNonRoot: true and a non-zero runAsUser in its securityContext.
+spec:
+  validationFailureAction: Enforce
+  background: true               # also scan existing resources, not just new ones
+
+  rules:
+    - name: check-containers-not-root
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+              namespaces:
+                - dev
+                - prod
+      # Exclude system namespaces — Kyverno and Istio themselves need some privileges
+      exclude:
+        any:
+          - resources:
+              namespaces:
+                - kube-system
+                - kyverno
+                - istio-system
+
+      validate:
+        message: >-
+          Running as root is not allowed. Set securityContext.runAsNonRoot=true
+          and securityContext.runAsUser to a non-zero value (e.g. 1000).
+        # JMESPath pattern — checks ALL containers in the pod spec
+        pattern:
+          spec:
+            containers:
+              - securityContext:
+                  runAsNonRoot: true
+                  runAsUser: ">0"

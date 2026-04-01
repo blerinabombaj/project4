@@ -1,0 +1,49 @@
+# peer-authentication.yaml
+#
+# WHAT: Enforces mutual TLS (mTLS) for all pod-to-pod communication
+#       inside the dev and prod namespaces.
+#
+# WHAT IS mTLS?
+# ─────────────
+# Normal TLS: the CLIENT verifies the server's certificate (like HTTPS).
+# mTLS (mutual): BOTH sides verify each other's certificate.
+#
+# In a Kubernetes cluster without Istio, service-to-service traffic
+# is plain HTTP inside the cluster. That means:
+#   - Any compromised pod can talk to any other pod undetected
+#   - Traffic can be sniffed by anyone on the same node
+#   - There's no proof that "api-gateway" is actually api-gateway
+#
+# With mTLS STRICT:
+#   - Every service gets a cryptographic identity (SPIFFE/X.509 cert)
+#     issued by Istio's built-in CA (Citadel)
+#   - Envoy automatically negotiates mTLS on every connection
+#   - A compromised pod presenting the wrong cert is rejected
+#   - Plain HTTP connections are rejected entirely
+#
+# This is Zero Trust networking: never trust, always verify.
+# Even traffic that's already "inside the cluster" must be authenticated.
+#
+# Mode options:
+#   STRICT      → mTLS required, plain HTTP rejected
+#   PERMISSIVE  → mTLS used if available, plain HTTP also accepted (use during migration)
+#   DISABLE     → no mTLS (never use in prod)
+
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: default-mtls
+  namespace: dev
+spec:
+  mtls:
+    mode: STRICT    # reject any connection that isn't mTLS — no exceptions
+
+---
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: default-mtls
+  namespace: prod
+spec:
+  mtls:
+    mode: STRICT

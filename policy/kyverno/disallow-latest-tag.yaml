@@ -1,0 +1,53 @@
+# disallow-latest-tag.yaml
+#
+# WHAT: Blocks pods in prod that use the "latest" image tag.
+#
+# WHY: The "latest" tag is a lie — it doesn't mean the latest version,
+#      it just means "the last thing pushed with no explicit tag".
+#
+#   Problems with latest in production:
+#   - You can't tell what code is actually running
+#   - Rolling back is impossible (latest is whatever was last pushed)
+#   - Two nodes may pull different images if a push happens mid-deploy
+#   - `imagePullPolicy: IfNotPresent` with latest = nodes silently diverge
+#
+# We only enforce this in prod. Dev uses "dev-latest" by convention
+# (still a mutable tag, but not ambiguous — it's the current dev build).
+# The rule uses a Kyverno "deny" pattern to explicitly block the tag.
+
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: disallow-latest-tag
+  annotations:
+    policies.kyverno.io/title: Disallow Latest Tag in Production
+    policies.kyverno.io/category: Best Practices
+    policies.kyverno.io/severity: medium
+    policies.kyverno.io/description: >-
+      Pods in the prod namespace must use a pinned image tag.
+      The 'latest' tag is not allowed in production.
+spec:
+  validationFailureAction: Enforce
+  background: true
+
+  rules:
+    - name: check-no-latest-tag
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+              namespaces:
+                - prod              # prod only — dev is allowed to use mutable tags
+      validate:
+        message: >-
+          The 'latest' tag is not allowed in production. Pin your image to a
+          specific version tag (e.g. 1.2.3) in values-prod.yaml.
+        deny:
+          conditions:
+            any:
+              # Deny if ANY container image ends with ":latest" or has no tag at all
+              - key: "{{ request.object.spec.containers[].image }}"
+                operator: AnyIn
+                value:
+                  - "*:latest"

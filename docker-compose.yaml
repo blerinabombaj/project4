@@ -1,0 +1,98 @@
+# docker-compose.yaml — Local development environment
+#
+# Purpose: Spin up all three services locally so you can test the full
+# request flow without a Kubernetes cluster. This is your inner dev loop.
+#
+# Usage:
+#   docker compose up --build        # build images and start all services
+#   docker compose up --build -d     # same but detached (background)
+#   docker compose logs -f           # stream logs from all services
+#   docker compose down              # stop and remove containers
+#   docker compose down -v           # also remove volumes
+
+networks:
+  # A dedicated bridge network so services can reach each other by name.
+  # e.g. api-gateway calls http://user-service:8001 — Docker DNS resolves it.
+  # Without this, services would be isolated and couldn't communicate.
+  app-network:
+    driver: bridge
+
+services:
+
+  # ── User Service ─────────────────────────────────────────────────────────────
+  user-service:
+    build:
+      context: ./apps/user-service   # where the Dockerfile lives
+      dockerfile: Dockerfile
+    container_name: user-service
+    ports:
+      - "8001:8001"                  # host:container — access from your machine at localhost:8001
+    environment:
+      - ENV=local
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "python", "-c", "import httpx; httpx.get('http://localhost:8001/health').raise_for_status()"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    # Hot reload: mount source code into container so changes reflect without rebuild.
+    # Remove this in any non-local environment — images must be immutable in CI/CD.
+    volumes:
+      - ./apps/user-service/main.py:/app/main.py:ro
+
+  # ── Order Service ────────────────────────────────────────────────────────────
+  order-service:
+    build:
+      context: ./apps/order-service
+      dockerfile: Dockerfile
+    container_name: order-service
+    ports:
+      - "8002:8002"
+    environment:
+      - ENV=local
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD", "python", "-c", "import httpx; httpx.get('http://localhost:8002/health').raise_for_status()"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    volumes:
+      - ./apps/order-service/main.py:/app/main.py:ro
+
+  # ── API Gateway ──────────────────────────────────────────────────────────────
+  # The gateway depends on both upstream services being healthy before it starts.
+  # This mirrors what Kubernetes readiness probes do — don't serve traffic until
+  # your dependencies are ready.
+  api-gateway:
+    build:
+      context: ./apps/api-gateway
+      dockerfile: Dockerfile
+    container_name: api-gateway
+    ports:
+      - "8000:8000"                  # only the gateway is exposed to external traffic
+    environment:
+      - ENV=local
+      # Service discovery by container name — works because all services
+      # are on the same Docker network (app-network).
+      # In Kubernetes, these become ClusterDNS names like http://user-service.default.svc.cluster.local
+      - USER_SERVICE_URL=http://user-service:8001
+      - ORDER_SERVICE_URL=http://order-service:8002
+    networks:
+      - app-network
+    depends_on:
+      user-service:
+        condition: service_healthy   # wait until healthcheck passes, not just started
+      order-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import httpx; httpx.get('http://localhost:8000/health').raise_for_status()"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    volumes:
+      - ./apps/api-gateway/main.py:/app/main.py:ro

@@ -1,0 +1,153 @@
+# ═════════════════════════════════════════════════════════════════════════════
+# OS FILES — the ones that caused you problems before
+# ═════════════════════════════════════════════════════════════════════════════
+
+# macOS — Finder metadata, created automatically in every folder you open
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+
+# Windows
+Thumbs.db
+ehthumbs.db
+desktop.ini
+
+# Linux
+*~
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# TERRAFORM
+# ═════════════════════════════════════════════════════════════════════════════
+
+# Local .terraform directory contains downloaded providers (can be 100MB+)
+# Everyone runs terraform init to get their own copy
+**/.terraform/
+**/.terraform.lock.hcl
+
+# State files — state lives in S3 (remote backend), never in Git
+# Local state from bootstrap is the one exception but still shouldn't be committed
+*.tfstate
+*.tfstate.*
+*.tfstate.backup
+
+# Terraform variable files that may contain secrets
+*.tfvars.json
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Terraform plan output — contains sensitive data, generated on demand
+*.tfplan
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# DOCKER
+# ═════════════════════════════════════════════════════════════════════════════
+
+# Local docker-compose overrides (personal dev config, not shared)
+docker-compose.override.yaml
+docker-compose.local.yaml
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# KUBERNETES / HELM
+# ═════════════════════════════════════════════════════════════════════════════
+
+# Helm chart dependencies downloaded locally
+charts/
+*.tgz
+
+# Rendered Helm output (debugging only, never commit)
+helm-output/
+rendered/
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# SECRETS AND CREDENTIALS — never commit these
+# ═════════════════════════════════════════════════════════════════════════════
+
+# Generic secret patterns
+*.pem
+*.key
+*.p12
+*.pfx
+*.cert
+*.crt
+*.cer
+*.der
+*.csr
+secrets/
+.secrets
+.env
+.env.*
+!.env.example      # allow a committed example file showing required vars
+
+# AWS credentials
+.aws/
+credentials
+
+# kubeconfig — contains cluster access tokens
+kubeconfig
+kubeconfig-*
+*.kubeconfig
+.kube/
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# EDITOR AND IDE
+# ═════════════════════════════════════════════════════════════════════════════
+
+# VSCode — settings and extensions are personal, not project config
+.vscode/
+!.vscode/extensions.json    # allow sharing recommended extensions
+
+# JetBrains (IntelliJ, PyCharm, GoLand, etc.)
+.idea/
+*.iml
+
+# Vim
+*.swp
+*.swo
+
+# Emacs
+\#*\#
+.#*
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# PYTHON (for the app services)
+# ═════════════════════════════════════════════════════════════════════════════
+
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.eggs/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+.coverage.*
+venv/
+.venv/
+env/
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# LOGS AND TEMP FILES
+# ═════════════════════════════════════════════════════════════════════════════
+
+*.log
+*.tmp
+*.temp
+tmp/
+temp/

@@ -1,0 +1,62 @@
+# api-gateway-prod.yaml
+#
+# PROD SYNC POLICY: manual
+# ─────────────────────────
+# Unlike dev, prod does NOT auto-sync.
+# A human must open the ArgoCD UI (or run `argocd app sync`) to approve
+# a deployment to production. This gives you a gate between "merged to Git"
+# and "running in prod".
+#
+# The typical release flow:
+#   1. CI builds image, pushes to ECR, tags as "1.2.3"
+#   2. CI opens a PR updating values-prod.yaml image.tag to "1.2.3"
+#   3. Engineer reviews and merges the PR
+#   4. ArgoCD detects the diff but WAITS — no auto-sync in prod
+#   5. Engineer clicks Sync in ArgoCD UI after verifying dev looks healthy
+#   6. ArgoCD applies the Helm chart with the new values to the prod namespace
+#
+# This pattern is called "progressive delivery" — controlled promotion
+# from dev → prod with a human approval gate.
+
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: api-gateway-prod
+  namespace: argocd
+  labels:
+    environment: prod
+    service: api-gateway
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/YOUR_ORG/YOUR_REPO.git
+    targetRevision: HEAD
+    path: platform/helm/api-gateway
+    helm:
+      valueFiles:
+        - values.yaml
+        - values-prod.yaml                 # prod overrides: 3 replicas, pinned tag
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: prod
+
+  syncPolicy:
+    # No 'automated' block = manual sync only
+    syncOptions:
+      - CreateNamespace=true
+    retry:
+      limit: 3
+      backoff:
+        duration: 10s
+        maxDuration: 2m
+        factor: 2
+
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      jsonPointers:
+        - /spec/replicas

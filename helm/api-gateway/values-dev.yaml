@@ -1,0 +1,17 @@
+# values-dev.yaml — dev environment overrides
+# Only specify what differs from values.yaml
+
+replicaCount: 1       # single replica is fine for dev
+
+image:
+  repository: "123456789.dkr.ecr.eu-west-1.amazonaws.com/api-gateway"
+  tag: "dev-latest"
+  pullPolicy: Always  # always pull in dev so you get the freshest image
+
+resources:
+  requests:
+    cpu: "50m"        # relaxed in dev — cheaper, nodes are smaller
+    memory: "64Mi"
+  limits:
+    cpu: "150m"
+    memory: "128Mi"

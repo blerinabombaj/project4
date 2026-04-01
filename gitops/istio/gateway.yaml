@@ -1,0 +1,59 @@
+# gateway.yaml
+#
+# WHAT: Defines the Istio Gateway — the single entry point for ALL
+#       external traffic into the cluster.
+#
+# ISTIO GATEWAY vs KUBERNETES INGRESS
+# ─────────────────────────────────────
+# Kubernetes Ingress is a basic L7 load balancer. It can route by host/path
+# but has limited traffic management capabilities and no mesh awareness.
+#
+# Istio Gateway is a full Envoy proxy at the edge. It gives you:
+#   - Fine-grained traffic splitting (canary deployments)
+#   - TLS termination with cert rotation
+#   - Circuit breaking at the ingress level
+#   - Full observability (metrics, traces) from the very first hop
+#   - Integration with VirtualServices for advanced routing
+#
+# HOW IT WORKS:
+#   Internet → AWS Load Balancer → Istio IngressGateway pod → VirtualService rules → Service → Pod
+#
+# The Gateway only defines WHAT ports/protocols to listen on.
+# The VirtualService (next file) defines WHERE to route traffic.
+# They are linked by the `gateways:` field in VirtualService.
+
+apiVersion: networking.istio.io/v1beta1
+kind: Gateway
+metadata:
+  name: platform-gateway
+  namespace: istio-system        # Gateway lives in istio-system, not dev/prod
+spec:
+  selector:
+    istio: ingressgateway        # targets the IngressGateway pod Istio installs by default
+
+  servers:
+    # ── HTTP (port 80) ───────────────────────────────────────────────────────
+    # Redirect all HTTP to HTTPS in prod. Keep HTTP available in dev for ease.
+    - port:
+        number: 80
+        name: http
+        protocol: HTTP
+      hosts:
+        - "api.dev.example.com"
+        - "api.prod.example.com"
+      tls:
+        httpsRedirect: false     # set to true once you have a real domain + cert
+
+    # ── HTTPS (port 443) ────────────────────────────────────────────────────
+    # TLS terminates here. Traffic inside the cluster is re-encrypted by
+    # Envoy sidecars using mTLS — so it's encrypted end-to-end.
+    - port:
+        number: 443
+        name: https
+        protocol: HTTPS
+      hosts:
+        - "api.dev.example.com"
+        - "api.prod.example.com"
+      tls:
+        mode: SIMPLE             # terminate TLS here, forward plaintext to VirtualService
+        credentialName: platform-tls-cert   # K8s Secret containing the TLS cert

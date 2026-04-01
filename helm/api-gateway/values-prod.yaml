@@ -1,0 +1,16 @@
+# values-prod.yaml — prod environment overrides
+
+replicaCount: 3       # 3 replicas for high availability across AZs
+
+image:
+  repository: "123456789.dkr.ecr.eu-west-1.amazonaws.com/api-gateway"
+  tag: "1.0.0"        # pinned tag in prod — never use 'latest' in production
+  pullPolicy: IfNotPresent
+
+resources:
+  requests:
+    cpu: "200m"
+    memory: "256Mi"
+  limits:
+    cpu: "500m"
+    memory: "512Mi"

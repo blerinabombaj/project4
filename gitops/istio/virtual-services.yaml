@@ -1,0 +1,128 @@
+# virtual-services.yaml
+#
+# WHAT: VirtualServices define routing rules — which requests go where.
+#       Think of them as the routing table for your service mesh.
+#
+# VirtualService RESPONSIBILITIES:
+#   - Route external traffic from the Gateway to the right service
+#   - Route internal traffic between services
+#   - Apply retries, timeouts, and fault injection
+#
+# HOW IT CONNECTS TO THE GATEWAY:
+#   The `gateways:` field links this VirtualService to the Gateway.
+#   The `hosts:` field matches the incoming Host header.
+#   The `http.route` sends matched traffic to a Kubernetes Service.
+#   That Service (from our Helm chart) load-balances across pods.
+#
+# TRAFFIC FLOW (external request):
+#   curl https://api.dev.example.com/users/1
+#     → AWS Load Balancer
+#       → Istio IngressGateway (gateway.yaml matches the host)
+#         → VirtualService (routes /users/* to user-service)
+#           → Kubernetes Service: user-service (dev namespace)
+#             → Pod (Envoy sidecar → app container)
+#
+# TRAFFIC FLOW (internal request):
+#   api-gateway pod calls http://user-service:8001/users/1
+#     → Envoy sidecar intercepts the call
+#       → VirtualService for user-service applies timeout/retry rules
+#         → Routes to user-service pods via DestinationRule
+
+# ── DEV VirtualService ────────────────────────────────────────────────────────
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: api-gateway-dev
+  namespace: dev
+spec:
+  hosts:
+    - "api.dev.example.com"        # matches Host header from the Gateway
+  gateways:
+    - istio-system/platform-gateway  # linked to our Gateway resource
+  http:
+    # Route /users/* to user-service
+    - match:
+        - uri:
+            prefix: /users
+      route:
+        - destination:
+            host: user-service       # the Kubernetes Service name (from Helm)
+            port:
+              number: 8001
+      timeout: 10s
+      retries:
+        attempts: 3
+        perTryTimeout: 3s
+        retryOn: gateway-error,connect-failure,retriable-4xx
+
+    # Route /orders/* to order-service
+    - match:
+        - uri:
+            prefix: /orders
+      route:
+        - destination:
+            host: order-service
+            port:
+              number: 8002
+      timeout: 10s
+      retries:
+        attempts: 3
+        perTryTimeout: 3s
+        retryOn: gateway-error,connect-failure,retriable-4xx
+
+    # All other traffic goes to api-gateway (the catch-all)
+    - route:
+        - destination:
+            host: api-gateway
+            port:
+              number: 8000
+      timeout: 15s
+
+---
+# ── PROD VirtualService ───────────────────────────────────────────────────────
+# Same routing rules, tighter timeouts, points at prod namespace services.
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: api-gateway-prod
+  namespace: prod
+spec:
+  hosts:
+    - "api.prod.example.com"
+  gateways:
+    - istio-system/platform-gateway
+  http:
+    - match:
+        - uri:
+            prefix: /users
+      route:
+        - destination:
+            host: user-service
+            port:
+              number: 8001
+      timeout: 5s                  # tighter timeout in prod — fail fast
+      retries:
+        attempts: 3
+        perTryTimeout: 2s
+        retryOn: gateway-error,connect-failure,retriable-4xx
+
+    - match:
+        - uri:
+            prefix: /orders
+      route:
+        - destination:
+            host: order-service
+            port:
+              number: 8002
+      timeout: 5s
+      retries:
+        attempts: 3
+        perTryTimeout: 2s
+        retryOn: gateway-error,connect-failure,retriable-4xx
+
+    - route:
+        - destination:
+            host: api-gateway
+            port:
+              number: 8000
+      timeout: 10s

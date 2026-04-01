@@ -1,0 +1,52 @@
+# values.yaml — base defaults for api-gateway
+# These are the fallback values. Environment-specific files (values-dev.yaml,
+# values-prod.yaml) override only what needs to change per environment.
+# Helm merges them: helm install ... -f values.yaml -f values-dev.yaml
+
+replicaCount: 1
+
+image:
+  repository: ""          # will be set per environment (ECR URL)
+  tag: "latest"
+  pullPolicy: IfNotPresent # don't re-pull if image already exists on node
+
+service:
+  type: ClusterIP          # internal only — Istio Gateway handles external traffic
+  port: 8000
+
+env:
+  USER_SERVICE_URL: "http://user-service:8001"
+  ORDER_SERVICE_URL: "http://order-service:8002"
+
+# Resource requests and limits.
+# Requests: what the scheduler uses to place the pod on a node.
+# Limits: hard ceiling — the container is killed if it exceeds memory limit.
+# Kyverno will block any pod that does NOT define these.
+resources:
+  requests:
+    cpu: "100m"      # 100 millicores = 0.1 of a CPU core
+    memory: "128Mi"
+  limits:
+    cpu: "250m"
+    memory: "256Mi"
+
+# Probes use the /health endpoint we defined in the app.
+# readiness: pod only receives traffic when this passes
+# liveness:  pod is restarted if this fails
+probes:
+  readiness:
+    path: /health
+    initialDelaySeconds: 5
+    periodSeconds: 10
+  liveness:
+    path: /health
+    initialDelaySeconds: 15
+    periodSeconds: 20
+
+# Security context — enforces what we set up in the Dockerfile.
+# Kyverno's no-root-containers policy will verify runAsNonRoot: true.
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true

@@ -1,0 +1,22 @@
+# templates/service.yaml
+# A Service gives pods a stable internal DNS name and load balances traffic
+# across all healthy pod replicas. Without this, you'd have to track pod IPs
+# manually — they change every time a pod restarts.
+#
+# ClusterIP = only reachable inside the cluster.
+# External traffic enters via Istio's IngressGateway, not directly here.
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ .Release.Name }}
+spec:
+  type: {{ .Values.service.type }}
+  selector:
+    app: {{ .Release.Name }}             # routes to pods with this label
+  ports:
+    - protocol: TCP
+      port: {{ .Values.service.port }}       # port the Service exposes inside the cluster
+      targetPort: {{ .Values.service.port }} # port on the container to forward to

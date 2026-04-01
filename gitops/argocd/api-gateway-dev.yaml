@@ -1,0 +1,64 @@
+# api-gateway-dev.yaml
+#
+# HOW THIS CONNECTS TO HELM (Step 3)
+# ───────────────────────────────────
+# ArgoCD renders the Helm chart at deploy time using the values files
+# we defined in helm/api-gateway/. It calls:
+#   helm template api-gateway ./helm/api-gateway \
+#     -f values.yaml -f values-dev.yaml
+# then applies the rendered manifests to the dev namespace.
+#
+# You never run helm install manually — ArgoCD is the only thing
+# that applies Helm charts to the cluster. Git is the trigger.
+#
+# DEV SYNC POLICY: automated
+# Changes merged to main deploy to dev automatically within ~3 minutes.
+# This is your fast feedback loop — push code, CI builds and pushes image,
+# ArgoCD detects the new image tag in values-dev.yaml and syncs.
+
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: api-gateway-dev
+  namespace: argocd
+  labels:
+    environment: dev
+    service: api-gateway
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/YOUR_ORG/YOUR_REPO.git
+    targetRevision: HEAD
+    path: platform/helm/api-gateway        # path to the Helm chart
+    helm:
+      valueFiles:
+        - values.yaml                      # base defaults
+        - values-dev.yaml                  # dev overrides (image tag, replica count, etc.)
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: dev                         # deploys into the dev namespace
+
+  syncPolicy:
+    automated:
+      prune: true       # remove K8s resources that no longer exist in the Helm chart
+      selfHeal: true    # revert any manual kubectl edits — Git is the source of truth
+    syncOptions:
+      - CreateNamespace=true              # create the dev namespace if it doesn't exist
+    retry:
+      limit: 3                            # retry failed syncs up to 3 times
+      backoff:
+        duration: 10s
+        maxDuration: 1m
+        factor: 2
+
+  # Health checks — ArgoCD waits for these before marking sync as complete
+  # These use the readiness probes defined in the Helm deployment template
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      jsonPointers:
+        - /spec/replicas   # ignore replica count diffs (cluster autoscaler may change this)

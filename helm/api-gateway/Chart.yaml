@@ -1,0 +1,6 @@
+apiVersion: v2
+name: api-gateway
+description: Helm chart for the API Gateway service
+type: application
+version: 0.1.0       # chart version — bump this when you change the chart itself
+appVersion: "1.0.0"  # app version — bump this when you release a new image

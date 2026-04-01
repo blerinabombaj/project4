@@ -1,0 +1,61 @@
+# require-trusted-registry.yaml
+#
+# WHAT: Blocks any pod whose image doesn't come from your ECR registry.
+#
+# WHY: Without this, anyone with kubectl access could run:
+#   kubectl run pwned --image=docker.io/evilhacker/cryptominer
+#
+# By allowing only images from YOUR ECR account, you guarantee:
+#   1. Every image was built by your CI pipeline
+#   2. Every image was scanned by Trivy before being pushed
+#   3. No unvetted public images can run in the cluster
+#
+# This is the policy that ties together:
+#   Trivy (scans images) → ECR (stores trusted images) → Kyverno (enforces only ECR is used)
+#
+# The ECR URL format is:
+#   <account-id>.dkr.ecr.<region>.amazonaws.com/<repo>:<tag>
+
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-trusted-registry
+  annotations:
+    policies.kyverno.io/title: Require Trusted Registry
+    policies.kyverno.io/category: Supply Chain Security
+    policies.kyverno.io/severity: high
+    policies.kyverno.io/description: >-
+      All container images must be pulled from the organisation's ECR registry.
+      Public registries (docker.io, ghcr.io, quay.io) are not permitted.
+spec:
+  validationFailureAction: Enforce
+  background: true
+
+  rules:
+    - name: check-image-registry
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+              namespaces:
+                - dev
+                - prod
+      exclude:
+        any:
+          - resources:
+              namespaces:
+                - kube-system
+                - kyverno
+                - istio-system
+
+      validate:
+        message: >-
+          Images must be pulled from the trusted ECR registry:
+          123456789.dkr.ecr.eu-west-1.amazonaws.com
+          Public registry images (docker.io, ghcr.io, etc.) are not allowed.
+        pattern:
+          spec:
+            containers:
+              # The wildcard anchors ensure every container's image starts with our ECR URL
+              - image: "123456789.dkr.ecr.eu-west-1.amazonaws.com/*"

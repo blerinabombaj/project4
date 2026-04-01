@@ -1,0 +1,66 @@
+# require-resource-limits.yaml
+#
+# WHAT: Blocks any pod that doesn't declare CPU and memory requests AND limits.
+#
+# WHY: Without resource limits:
+#   - One noisy container can starve all other pods on the node
+#   - The Kubernetes scheduler can't make good placement decisions
+#   - OOMKilled events become unpredictable
+#   Without resource requests:
+#   - Pods get placed on already-full nodes and immediately get evicted
+#
+# This enforces what we set in Helm values.yaml under `resources:`.
+# If someone deploys a raw manifest without those fields, this blocks it.
+#
+# Real-world consequence: a junior engineer deploys a debug pod with no
+# limits, it starts a memory leak, and takes down your entire node group.
+# This policy prevents that scenario entirely.
+
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-resource-limits
+  annotations:
+    policies.kyverno.io/title: Require Resource Limits
+    policies.kyverno.io/category: Resource Management
+    policies.kyverno.io/severity: medium
+    policies.kyverno.io/description: >-
+      All containers must specify CPU and memory requests and limits
+      to ensure stable scheduling and prevent resource exhaustion.
+spec:
+  validationFailureAction: Enforce
+  background: true
+
+  rules:
+    - name: check-resource-limits
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+              namespaces:
+                - dev
+                - prod
+      exclude:
+        any:
+          - resources:
+              namespaces:
+                - kube-system
+                - kyverno
+                - istio-system
+
+      validate:
+        message: >-
+          All containers must define resources.requests.cpu,
+          resources.requests.memory, resources.limits.cpu, and
+          resources.limits.memory. Add these to your Helm values file.
+        pattern:
+          spec:
+            containers:
+              - resources:
+                  requests:
+                    cpu: "?*"      # "?*" means: field must exist and be non-empty
+                    memory: "?*"
+                  limits:
+                    cpu: "?*"
+                    memory: "?*"

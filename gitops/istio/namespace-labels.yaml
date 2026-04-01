@@ -1,0 +1,36 @@
+# namespace-labels.yaml
+#
+# WHAT: Labels the dev and prod namespaces to enable Istio sidecar injection.
+#
+# HOW ISTIO'S SIDECAR WORKS
+# ──────────────────────────
+# When a namespace has the label `istio-injection: enabled`, Istio's
+# MutatingWebhook intercepts every new Pod creation and automatically
+# injects an Envoy proxy container (the "sidecar") alongside your app container.
+#
+# Your pod goes from:
+#   [app-container]
+# to:
+#   [app-container] [envoy-sidecar]
+#
+# ALL network traffic in and out of your pod now flows through Envoy.
+# Your app code changes nothing — the mesh is transparent to it.
+# Envoy handles: mTLS, retries, timeouts, circuit breaking, metrics, tracing.
+#
+# This label is the on-switch for everything else in this folder.
+# Without it, none of the other Istio configs have any effect.
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: dev
+  labels:
+    istio-injection: enabled      # Envoy sidecar injected into every pod in this namespace
+
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: prod
+  labels:
+    istio-injection: enabled

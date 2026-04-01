@@ -1,0 +1,160 @@
+# destination-rules.yaml
+#
+# WHAT: DestinationRules define policies applied to traffic AFTER routing.
+#       If VirtualService is the "where does traffic go?",
+#       DestinationRule is the "how does traffic behave when it gets there?".
+#
+# KEY CAPABILITIES:
+#
+# 1. LOAD BALANCING ALGORITHM
+#    Default is round-robin. We use LEAST_CONN (least connections) —
+#    sends each new request to the pod currently handling the fewest requests.
+#    Better for services with variable response times.
+#
+# 2. CONNECTION POOL (circuit breaker setup)
+#    Limits how many connections/requests can pile up waiting for a slow service.
+#    Without this: one slow pod causes a queue buildup that takes down the caller.
+#    With this: requests fail fast once the pool is full — the caller can handle
+#    the error instead of hanging indefinitely.
+#
+# 3. OUTLIER DETECTION (circuit breaker trigger)
+#    Watches pods for consecutive errors. If a pod returns 5xx errors repeatedly,
+#    Istio ejects it from the load balancing pool for a cooldown period.
+#    It's automatically re-added once it recovers.
+#    This is passive health checking — complements the active K8s readiness probe.
+#
+# CIRCUIT BREAKER MENTAL MODEL:
+#   CLOSED  → normal, traffic flows
+#   OPEN    → pod ejected, traffic goes to other pods
+#   HALF-OPEN → after cooldown, one request let through to test recovery
+
+# ── DEV DestinationRules ──────────────────────────────────────────────────────
+
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: api-gateway
+  namespace: dev
+spec:
+  host: api-gateway                # matches the Kubernetes Service name
+  trafficPolicy:
+    loadBalancer:
+      simple: LEAST_CONN
+    connectionPool:
+      http:
+        http1MaxPendingRequests: 100    # max queued requests waiting for a connection
+        http2MaxRequests: 1000          # max active requests to the service
+        consecutiveGatewayErrors: 5     # eject pod after 5 consecutive gateway errors
+    outlierDetection:
+      consecutiveGatewayErrors: 5
+      interval: 30s                     # check for outliers every 30 seconds
+      baseEjectionTime: 30s             # eject a bad pod for at least 30 seconds
+      maxEjectionPercent: 50            # never eject more than 50% of pods at once
+
+---
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: user-service
+  namespace: dev
+spec:
+  host: user-service
+  trafficPolicy:
+    loadBalancer:
+      simple: LEAST_CONN
+    connectionPool:
+      http:
+        http1MaxPendingRequests: 100
+        http2MaxRequests: 1000
+    outlierDetection:
+      consecutiveGatewayErrors: 5
+      interval: 30s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 50
+
+---
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: order-service
+  namespace: dev
+spec:
+  host: order-service
+  trafficPolicy:
+    loadBalancer:
+      simple: LEAST_CONN
+    connectionPool:
+      http:
+        http1MaxPendingRequests: 100
+        http2MaxRequests: 1000
+    outlierDetection:
+      consecutiveGatewayErrors: 5
+      interval: 30s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 50
+
+---
+# ── PROD DestinationRules ─────────────────────────────────────────────────────
+# Stricter thresholds — less tolerance for errors before ejecting a pod.
+
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: api-gateway
+  namespace: prod
+spec:
+  host: api-gateway
+  trafficPolicy:
+    loadBalancer:
+      simple: LEAST_CONN
+    connectionPool:
+      http:
+        http1MaxPendingRequests: 200
+        http2MaxRequests: 2000
+    outlierDetection:
+      consecutiveGatewayErrors: 3       # stricter in prod — eject faster
+      interval: 10s
+      baseEjectionTime: 60s             # longer cooldown in prod
+      maxEjectionPercent: 33            # never eject more than 1 of 3 prod pods
+
+---
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: user-service
+  namespace: prod
+spec:
+  host: user-service
+  trafficPolicy:
+    loadBalancer:
+      simple: LEAST_CONN
+    connectionPool:
+      http:
+        http1MaxPendingRequests: 200
+        http2MaxRequests: 2000
+    outlierDetection:
+      consecutiveGatewayErrors: 3
+      interval: 10s
+      baseEjectionTime: 60s
+      maxEjectionPercent: 33
+
+---
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: order-service
+  namespace: prod
+spec:
+  host: order-service
+  trafficPolicy:
+    loadBalancer:
+      simple: LEAST_CONN
+    connectionPool:
+      http:
+        http1MaxPendingRequests: 200
+        http2MaxRequests: 2000
+    outlierDetection:
+      consecutiveGatewayErrors: 3
+      interval: 10s
+      baseEjectionTime: 60s
+      maxEjectionPercent: 33
