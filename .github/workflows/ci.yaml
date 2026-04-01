@@ -217,7 +217,7 @@ jobs:
   #
   # It takes an image tag as input (e.g. main-a1b2c3d), updates
   # values-prod.yaml, and commits to Git. ArgoCD detects the change
-  # but waits for a human to approve the sync in the ArgoCD UI —
+###  # but waits for a human to approve the sync in the ArgoCD UI —
   # that's the second gate before anything hits production.
   promote-to-prod:
     name: Promote to prod
