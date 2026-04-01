@@ -31,7 +31,7 @@
 # SECRETS REQUIRED (set in GitHub → Settings → Secrets):
 #   AWS_ROLE_ARN          ARN of an IAM role GitHub Actions will assume
 #   AWS_REGION            eu-west-1
-#   ECR_REGISTRY          123456789.dkr.ecr.eu-west-1.amazonaws.com
+#   ECR_REGISTRY          444062204470.dkr.ecr.eu-west-1.amazonaws.com
 
 name: CI/CD Pipeline
 
