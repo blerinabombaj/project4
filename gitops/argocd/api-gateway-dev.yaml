@@ -30,9 +30,9 @@ spec:
   project: default
 
   source:
-    repoURL: https://github.com/YOUR_ORG/YOUR_REPO.git
+    repoURL: https://github.com/blerinabombaj/project4
     targetRevision: HEAD
-    path: platform/helm/api-gateway        # path to the Helm chart
+    path: helm/api-gateway        # path to the Helm chart
     helm:
       valueFiles:
         - values.yaml                      # base defaults

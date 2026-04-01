@@ -42,9 +42,9 @@ spec:
   project: default
 
   source:
-    repoURL: https://github.com/YOUR_ORG/YOUR_REPO.git   # replace with your repo
+    repoURL: https://github.com/blerinabombaj/project4   # replace with your repo
     targetRevision: HEAD
-    path: platform/gitops/argocd   # ArgoCD watches this folder for Application manifests
+    path: gitops/argocd   # ArgoCD watches this folder for Application manifests
 
   destination:
     server: https://kubernetes.default.svc   # the cluster ArgoCD itself runs in

@@ -12,9 +12,9 @@ spec:
   project: default
 
   source:
-    repoURL: https://github.com/YOUR_ORG/YOUR_REPO.git
+    repoURL: https://github.com/blerinabombaj/project4
     targetRevision: HEAD
-    path: platform/helm/order-service
+    path: helm/order-service
     helm:
       valueFiles:
         - values.yaml

@@ -43,8 +43,7 @@ spec:
     connectionPool:
       http:
         http1MaxPendingRequests: 100    # max queued requests waiting for a connection
-        http2MaxRequests: 1000          # max active requests to the service
-        consecutiveGatewayErrors: 5     # eject pod after 5 consecutive gateway errors
+        http2MaxRequests: 1000          # max active requests to the service   # eject pod after 5 consecutive gateway errors
     outlierDetection:
       consecutiveGatewayErrors: 5
       interval: 30s                     # check for outliers every 30 seconds
