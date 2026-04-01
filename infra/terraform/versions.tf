@@ -25,7 +25,7 @@ terraform {
   #   dev  → s3://bucket/env:/dev/platform/terraform.tfstate
   #   prod → s3://bucket/env:/prod/platform/terraform.tfstate
   backend "s3" {
-    bucket         = "platform-terraform-state-REPLACE_WITH_BOOTSTRAP_OUTPUT"
+    bucket         = "platform-terraform-state-ef35c47d"
     key            = "platform/terraform.tfstate"
     region         = "eu-west-1"
     dynamodb_table = "platform-terraform-locks"

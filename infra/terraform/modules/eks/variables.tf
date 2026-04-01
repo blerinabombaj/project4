@@ -9,7 +9,7 @@ variable "environment" {
 variable "cluster_version" {
   description = "Kubernetes version for the EKS cluster"
   type        = string
-  default     = "1.29"
+  default     = "1.32"
 }
 
 variable "subnet_ids" {
@@ -20,7 +20,7 @@ variable "subnet_ids" {
 variable "node_instance_type" {
   description = "EC2 instance type for worker nodes"
   type        = string
-  default     = "t3.medium"
+  default     = "c7i-flex.large"
 }
 
 variable "node_min_size" {

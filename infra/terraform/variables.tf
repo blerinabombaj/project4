@@ -31,15 +31,15 @@ variable "eks_config" {
   }))
   default = {
     dev = {
-      cluster_version    = "1.29"
-      node_instance_type = "t3.medium"  # cheap for dev
+      cluster_version    = "1.32"
+      node_instance_type = "c7i-flex.large"  # cheap for dev
       node_min_size      = 1
       node_max_size      = 2
       node_desired_size  = 1
     }
     prod = {
-      cluster_version    = "1.29"
-      node_instance_type = "t3.large"   # more headroom for prod
+      cluster_version    = "1.32"
+      node_instance_type = "c7i-flex.large"   # more headroom for prod
       node_min_size      = 2
       node_max_size      = 5
       node_desired_size  = 3            # matches replicaCount: 3 in prod helm values

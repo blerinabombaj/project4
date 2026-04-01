@@ -49,7 +49,7 @@ module "eks" {
   project            = var.project
   environment        = local.environment
   cluster_version    = local.config.cluster_version
-  subnet_ids         = module.vpc.private_subnet_ids
+  subnet_ids         = module.vpc.private_subnets
   node_instance_type = local.config.node_instance_type
   node_min_size      = local.config.node_min_size
   node_max_size      = local.config.node_max_size
