@@ -1,4 +1,4 @@
-# values-prod.yaml — prod environment overrides
+# values-prod.yaml — prod environment overrides#
 
 replicaCount: 3       # 3 replicas for high availability across AZs
 
