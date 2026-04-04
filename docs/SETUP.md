@@ -225,3 +225,29 @@ curl localhost:8000/users/1
 curl localhost:8000/orders/1
 
 docker compose down
+
+
+# 1. Bring infra back up
+cd ~/Desktop/project4/infra/terraform
+terraform workspace select dev
+terraform apply
+
+# 2. Update kubeconfig
+aws eks update-kubeconfig --name platform-dev --region eu-west-1
+
+# 3. Install Kyverno
+helm install kyverno kyverno/kyverno -n kyverno --create-namespace
+kubectl apply -f ~/Desktop/project4/policy/kyverno/
+
+# 4. Install Istio
+istioctl install --set profile=default
+
+# 5. Trigger CI to repopulate ECR images
+# just push a small change to apps/ on main
+
+# 6. Install ArgoCD and apply your app manifests
+
+aws eks update-kubeconfig \
+  --region eu-west-1 \
+  --name platform-prod \
+  --profile default
