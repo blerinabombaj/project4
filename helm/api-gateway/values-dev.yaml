@@ -1,5 +1,5 @@
 # values-dev.yaml — dev environment overrides
-# Only specify what differs from values.yaml
+# Only specify what  ## differs from values.yaml
 
 replicaCount: 1       # single replica is fine for dev
 
