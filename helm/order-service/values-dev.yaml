@@ -2,7 +2,7 @@ replicaCount: 1
 
 image:
   repository: "444062204470.dkr.ecr.eu-west-1.amazonaws.com/platform-dev-order-service"
-  tag: "main-5a115a4"
+  tag: "main-6dc62b1"
   pullPolicy: Always
 
 resources:
