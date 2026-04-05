@@ -36,26 +36,33 @@ metadata:
   namespace: dev
 spec:
   hosts:
-    - "api.dev.example.com"        # matches Host header from the Gateway
+    - "api.dev.example.com"
   gateways:
-    - istio-system/platform-gateway  # linked to our Gateway resource
+    - istio-system/platform-gateway
   http:
-    # Route /users/* to user-service
+    # Canary rollout — 90% stable, 10% canary
     - match:
         - uri:
             prefix: /users
       route:
         - destination:
-            host: user-service       # the Kubernetes Service name (from Helm)
+            host: user-service
             port:
               number: 8001
+            subset: stable
+          weight: 90
+        - destination:
+            host: user-service
+            port:
+              number: 8001
+            subset: canary
+          weight: 10
       timeout: 10s
       retries:
         attempts: 3
         perTryTimeout: 3s
         retryOn: gateway-error,connect-failure,retriable-4xx
 
-    # Route /orders/* to order-service
     - match:
         - uri:
             prefix: /orders
@@ -70,7 +77,6 @@ spec:
         perTryTimeout: 3s
         retryOn: gateway-error,connect-failure,retriable-4xx
 
-    # All other traffic goes to api-gateway (the catch-all)
     - route:
         - destination:
             host: api-gateway
@@ -80,7 +86,6 @@ spec:
 
 ---
 # ── PROD VirtualService ───────────────────────────────────────────────────────
-# Same routing rules, tighter timeouts, points at prod namespace services.
 apiVersion: networking.istio.io/v1beta1
 kind: VirtualService
 metadata:
@@ -100,7 +105,7 @@ spec:
             host: user-service
             port:
               number: 8001
-      timeout: 5s                  # tighter timeout in prod — fail fast
+      timeout: 5s
       retries:
         attempts: 3
         perTryTimeout: 2s
