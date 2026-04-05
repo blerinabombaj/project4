@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-service-dev-canary
+  namespace: dev
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: user-service-dev
+      version: main-canary
+  template:
+    metadata:
+      labels:
+        app: user-service-dev
+        version: main-canary
+    spec:
+      containers:
+        - name: user-service
+          image: 444062204470.dkr.ecr.eu-west-1.amazonaws.com/platform-dev-user-service:main-5a115a4
+          ports:
+            - containerPort: 8001

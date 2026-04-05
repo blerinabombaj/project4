@@ -45,7 +45,7 @@ spec:
   subsets:
     - name: stable
       labels:
-        version: "main-b7681b5"
+        version: "main-5a115a4"
     - name: canary
       labels:
         version: "main-canary"
