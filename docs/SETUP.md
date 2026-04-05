@@ -251,3 +251,117 @@ aws eks update-kubeconfig \
   --region eu-west-1 \
   --name platform-prod \
   --profile default
+
+  ECR="444062204470.dkr.ecr.eu-west-1.amazonaws.com"
+
+aws ecr get-login-password --region eu-west-1 | \
+  docker login --username AWS --password-stdin $ECR
+
+docker build --platform linux/amd64 \
+  -t $ECR/platform-prod-api-gateway:1.0.0 apps/api-gateway/
+docker push $ECR/platform-prod-api-gateway:1.0.0
+
+docker build --platform linux/amd64 \
+  -t $ECR/platform-prod-order-service:1.0.0 apps/order-service/
+docker push $ECR/platform-prod-order-service:1.0.0
+
+docker build --platform linux/amd64 \
+  -t $ECR/platform-prod-user-service:1.0.0 apps/user-service/
+docker push $ECR/platform-prod-user-service:1.0.0
+
+
+
+
+
+
+
+runbook
+
+# ── 1. REBUILD INFRASTRUCTURE ─────────────────────────────────────────────────
+cd infra/terraform
+
+terraform workspace select prod
+terraform init
+terraform apply -auto-approve
+
+# ── 2. CONFIGURE KUBECTL ──────────────────────────────────────────────────────
+aws eks update-kubeconfig \
+  --region eu-west-1 \
+  --name platform-prod
+
+# Verify nodes are ready
+kubectl get nodes
+
+# ── 3. BUILD AND PUSH IMAGES ──────────────────────────────────────────────────
+cd ~/Desktop/project4
+
+ECR="444062204470.dkr.ecr.eu-west-1.amazonaws.com"
+
+aws ecr get-login-password --region eu-west-1 | \
+  docker login --username AWS --password-stdin $ECR
+
+docker build --platform linux/amd64 \
+  -t $ECR/platform-prod-api-gateway:1.0.0 apps/api-gateway/
+docker push $ECR/platform-prod-api-gateway:1.0.0
+
+docker build --platform linux/amd64 \
+  -t $ECR/platform-prod-order-service:1.0.0 apps/order-service/
+docker push $ECR/platform-prod-order-service:1.0.0
+
+docker build --platform linux/amd64 \
+  -t $ECR/platform-prod-user-service:1.0.0 apps/user-service/
+docker push $ECR/platform-prod-user-service:1.0.0
+
+# ── 4. INSTALL ISTIO ──────────────────────────────────────────────────────────
+istioctl install --set profile=default -y
+
+# Wait for Istio to be ready
+kubectl rollout status deployment/istiod -n istio-system
+
+# Apply Istio configs
+kubectl apply -f gitops/istio/namespace-labels.yaml
+kubectl apply -f gitops/istio/gateway.yaml
+kubectl apply -f gitops/istio/destination-rules.yaml
+kubectl apply -f gitops/istio/virtual-services.yaml
+kubectl apply -f gitops/istio/peer-authentication.yaml
+
+# ── 5. INSTALL ARGOCD ─────────────────────────────────────────────────────────
+kubectl create namespace argocd
+
+kubectl apply -n argocd \
+  -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+
+# Wait for ArgoCD to be ready
+kubectl rollout status deployment/argocd-server -n argocd
+
+# ── 6. LOG INTO ARGOCD CLI ────────────────────────────────────────────────────
+# Port-forward in a separate terminal
+kubectl port-forward svc/argocd-server -n argocd 8080:443
+
+# Get initial password
+kubectl get secret argocd-initial-admin-secret -n argocd \
+  -o jsonpath='{.data.password}' | base64 -d && echo
+
+# Login
+argocd login localhost:8080 \
+  --username admin \
+  --password <password-from-above> \
+  --insecure
+
+# ── 7. DEPLOY EVERYTHING VIA APP-OF-APPS ─────────────────────────────────────
+# This single command bootstraps all 6 ArgoCD apps from Git
+kubectl apply -f gitops/argocd/app-of-apps.yaml
+
+# Watch ArgoCD sync all apps
+argocd app list
+
+# Manually sync prod apps (prod is manual sync by design)
+argocd app sync api-gateway-prod
+argocd app sync order-service-prod
+argocd app sync user-service-prod
+
+# ── 8. VERIFY EVERYTHING IS RUNNING ──────────────────────────────────────────
+kubectl get pods -n dev
+kubectl get pods -n prod
+argocd app list
+istioctl proxy-status
