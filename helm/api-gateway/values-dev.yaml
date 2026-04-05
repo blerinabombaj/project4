@@ -1,17 +1,21 @@
 # values-dev.yaml — dev environment overrides
 # Only specify what  ## differs from values.yaml
 
-replicaCount: 1       # single replica is fine for dev
+replicaCount: 1
 
 image:
   repository: "444062204470.dkr.ecr.eu-west-1.amazonaws.com/platform-dev-api-gateway"
   tag: "main-5a115a4"
-  pullPolicy: Always  # always pull in dev so you get the freshest image
+  pullPolicy: Always
 
 resources:
   requests:
-    cpu: "50m"        # relaxed in dev — cheaper, nodes are smaller
+    cpu: "50m"
     memory: "64Mi"
   limits:
     cpu: "150m"
     memory: "128Mi"
+
+env:
+  USER_SERVICE_URL: "http://user-service-dev:8001"
+  ORDER_SERVICE_URL: "http://order-service-dev:8002"
